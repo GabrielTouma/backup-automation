@@ -44,8 +44,15 @@ Terraform skapar 5 resurser. Backupskriptet kopierar och verifierar filerna:
 
 Om konfigurationsfilen saknas fångas felet av try/catch och loggas med `[FEL]`.
 
+Exempel med en sökväg som inte finns:
+
+```
+pwsh ./backup.ps1 -ConfigPath /fel/sokvag.json
+2026-11-03 11:04:12 [FEL] Backupen misslyckades: Hittar inte konfigurationsfilen: /fel/sokvag.json. Har du kört terraform apply?
+```
+
 ## Reflektion
-[Det svåraste i projektet var inte koden utan miljön runt den. När jag skulle
+Det svåraste i projektet var inte koden utan miljön runt den. När jag skulle
 installera PowerShell i WSL fungerade inte Microsofts vanliga installationsmetod,
 eftersom min Ubuntu-version (26.04) var för ny för deras paketkälla. Jag fick
 istället ladda ner installationsfilen direkt från PowerShells GitHub-sida.
@@ -60,4 +67,4 @@ PowerShell körs som administratör.
 Jag lärde mig att Terraform inte bara används för molnet utan också kan skapa
 lokala filer och mappar, och att config.json fungerar bra som länk mellan
 Terraform och PowerShell. Jag förstod också värdet av att verifiera resultatet
-istället för att bara anta att kopieringen fungerade.]
+istället för att bara anta att kopieringen fungerade.
