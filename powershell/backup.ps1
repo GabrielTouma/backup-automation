@@ -1,121 +1,63 @@
-<#
-  backup.ps1
-  Läser config.json (skapad av Terraform), tar backup av källmappen
-  och verifierar att backupen är korrekt.
-#>
+# backup.ps1 - tar backup enligt config.json från Terraform och verifierar
 param(
-    [string]$ConfigPath = "$PSScriptRoot/../data/config.json"
+    [string]$DataDir = "$PSScriptRoot/../data"
 )
 
 $ErrorActionPreference = "Stop"
-$script:LogFile = $null
+$LogFile = "$DataDir/backup.log"
 
 # Funktion 1: skriver tidsstämplad rad till skärm och loggfil
 function Write-Log {
-    param(
-        [Parameter(Mandatory)][string]$Message,
-        [ValidateSet("INFO", "OK", "FEL")][string]$Level = "INFO"
-    )
-    $line = "$(Get-Date -Format 'yyyy-MM-dd HH:mm:ss') [$Level] $Message"
+    param([string]$Message)
+    $line = "$(Get-Date -Format 'yyyy-MM-dd HH:mm:ss') $Message"
     Write-Host $line
-    if ($script:LogFile) {
-        Add-Content -Path $script:LogFile -Value $line
-    }
+    Add-Content -Path $LogFile -Value $line -ErrorAction SilentlyContinue
 }
 
-# Funktion 2: läser in config.json
-function Get-BackupConfig {
-    param([Parameter(Mandatory)][string]$Path)
-
-    if (-not (Test-Path $Path)) {
-        throw "Hittar inte konfigurationsfilen: $Path. Har du kört terraform apply?"
-    }
-    return Get-Content -Path $Path -Raw | ConvertFrom-Json
-}
-
-# Funktion 3: kopierar alla filer till en ny tidsstämplad mapp
+# Funktion 2: kopierar alla filer från källa till mål
 function New-Backup {
-    param(
-        [Parameter(Mandatory)][string]$SourceDir,
-        [Parameter(Mandatory)][string]$BackupDir,
-        [Parameter(Mandatory)][string]$BackupName
-    )
-    $timestamp = Get-Date -Format "yyyyMMdd-HHmmss"
-    $target = Join-Path $BackupDir "$BackupName-$timestamp"
-    New-Item -ItemType Directory -Path $target | Out-Null
-    Write-Log "Skapade backupmapp: $target"
-
-    $files = Get-ChildItem -Path $SourceDir -File
+    param([string]$Source, [string]$Target)
+    New-Item -ItemType Directory -Path $Target | Out-Null
+    $files = Get-ChildItem -Path $Source -File
     foreach ($file in $files) {
-        Copy-Item -Path $file.FullName -Destination $target
+        Copy-Item -Path $file.FullName -Destination $Target
         Write-Log "Kopierade $($file.Name)"
     }
-    return $target
 }
 
-# Funktion 4: verifierar att varje fil finns och har rätt storlek
+# Funktion 3: kontrollerar att varje fil finns i backupen
 function Test-Backup {
-    param(
-        [Parameter(Mandatory)][string]$SourceDir,
-        [Parameter(Mandatory)][string]$BackupFolder
-    )
+    param([string]$Source, [string]$Target)
     $errors = 0
-    foreach ($file in Get-ChildItem -Path $SourceDir -File) {
-        $copy = Join-Path $BackupFolder $file.Name
-
-        if (-not (Test-Path $copy)) {
-            Write-Log "Saknas i backup: $($file.Name)" -Level FEL
-            $errors++
-        }
-        elseif ((Get-Item $copy).Length -ne $file.Length) {
-            Write-Log "Fel storlek: $($file.Name)" -Level FEL
-            $errors++
+    foreach ($file in Get-ChildItem -Path $Source -File) {
+        if (Test-Path "$Target/$($file.Name)") {
+            Write-Log "OK: $($file.Name)"
         }
         else {
-            Write-Log "Verifierad: $($file.Name)" -Level OK
+            Write-Log "SAKNAS: $($file.Name)"
+            $errors++
         }
     }
-    return ($errors -eq 0)
-}
-
-# Funktion 5: tar bort äldsta backuperna om det finns fler än MaxBackups
-function Remove-OldBackups {
-    param(
-        [Parameter(Mandatory)][string]$BackupDir,
-        [Parameter(Mandatory)][int]$MaxBackups
-    )
-    $backups = @(Get-ChildItem -Path $BackupDir -Directory | Sort-Object Name)
-    $i = 0
-    while (($backups.Count - $i) -gt $MaxBackups) {
-        Remove-Item -Path $backups[$i].FullName -Recurse
-        Write-Log "Tog bort gammal backup: $($backups[$i].Name)"
-        $i++
-    }
+    return $errors
 }
 
 # Huvudprogram
 try {
-    $config = Get-BackupConfig -Path $ConfigPath
-    $script:LogFile = $config.log_file
-    Write-Log "Startar backupjobb: $($config.backup_name)"
+    $config = Get-Content "$DataDir/config.json" -Raw | ConvertFrom-Json
+    $target = "$DataDir/backup/$($config.backup_name)-$(Get-Date -Format 'yyyyMMdd-HHmmss')"
 
-    if (-not (Test-Path $config.source_dir)) {
-        throw "Källmappen finns inte: $($config.source_dir)"
-    }
+    Write-Log "Startar backup: $($config.backup_name)"
+    New-Backup -Source "$DataDir/source" -Target $target
 
-    $backupFolder = New-Backup -SourceDir $config.source_dir -BackupDir $config.backup_dir -BackupName $config.backup_name
-
-    if (Test-Backup -SourceDir $config.source_dir -BackupFolder $backupFolder) {
-        Write-Log "Hälsokontroll klar: backupen är korrekt" -Level OK
+    $errors = Test-Backup -Source "$DataDir/source" -Target $target
+    if ($errors -eq 0) {
+        Write-Log "Hälsokontroll klar: backupen är korrekt"
     }
     else {
-        throw "Hälsokontrollen misslyckades, se loggen"
+        Write-Log "Hälsokontroll misslyckades: $errors filer saknas"
     }
-
-    Remove-OldBackups -BackupDir $config.backup_dir -MaxBackups $config.max_backups
-    Write-Log "Backupjobbet är klart" -Level OK
 }
 catch {
-    Write-Log "Backupen misslyckades: $($_.Exception.Message)" -Level FEL
+    Write-Log "FEL: $($_.Exception.Message)"
     exit 1
 }
