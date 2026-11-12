@@ -1,13 +1,18 @@
+# main.tf - beskriver vad Terraform ska skapa
+
 provider "local" {}
 
-# Resource 1: testfil i källmappen
+# Resource 1: skapar en testfil per namn i listan (mappen skapas automatiskt)
+
 resource "local_file" "testfil" {
-  filename = "${path.module}/../data/source/${var.test_file}"
-  content  = "Testfil skapad av Terraform\n"
+  for_each = toset(var.test_files)                          #for loop går igenom test_files, kolla variables.tf; list(string)
+  filename = "${path.module}/../data/source/${each.value}"  # sökväg med variabel, path.module är mappen där main.tf ligger, projektroot
+  content  = "Привет arseniy!\n"                            # filens innehåll
 }
 
-# Resource 2: konfigurationsfil som PowerShell läser
+# Resource 2: skapar config.json som PowerShell-skriptet läser
+
 resource "local_file" "config" {
   filename = "${path.module}/../data/config.json"
-  content  = jsonencode({ backup_name = var.backup_name })
+  content  = jsonencode({ backup_name = var.backup_name })  # gör om till JSON
 }
