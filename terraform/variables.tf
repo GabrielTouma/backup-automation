@@ -10,5 +10,5 @@ variable "backup_name" {
 # Namn på testfilen som skapas i källmappen
 variable "test_files" {
   type    = list(string)
-  default = ["rapport.txt", "testfil.txt"]
+  default = ["rapport.txt", "testfil.txt", "arseniy.txt"]
 }
