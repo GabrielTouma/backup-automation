@@ -44,6 +44,19 @@ Terraform skapar 5 resurser. Backupskriptet kopierar och verifierar filerna:
 
 Om konfigurationsfilen saknas fångas felet av try/catch och loggas med `[FEL]`.
 
+### Felhantering
+Backupen körs i funktionen `Start-Backup`, som ligger i ett `try/catch`-block.
+`$ErrorActionPreference = "Stop"` gör att alla fel fångas av `catch`, där felet
+loggas med `FEL:` och menyn visas igen istället för att skriptet kraschar.
+
+Exempel med en sökväg som inte finns (val 1 i menyn):
+
+```
+pwsh ./backup.ps1 -DataDir /fel
+Välj ett alternativ: 1
+2026-11-15 19:50:12 FEL: Cannot find path '/fel/config.json' because it does not exist.
+```
+
 ## Reflektion
 Det svåraste i projektet var inte koden utan miljön runt den. När jag skulle
 installera PowerShell i WSL fungerade inte Microsofts vanliga installationsmetod,
