@@ -44,13 +44,6 @@ Terraform skapar 5 resurser. Backupskriptet kopierar och verifierar filerna:
 
 Om konfigurationsfilen saknas fångas felet av try/catch och loggas med `[FEL]`.
 
-Exempel med en sökväg som inte finns:
-
-```
-pwsh ./backup.ps1 -ConfigPath /fel/sokvag.json
-2026-11-03 11:04:12 [FEL] Backupen misslyckades: Hittar inte konfigurationsfilen: /fel/sokvag.json. Har du kört terraform apply?
-```
-
 ## Reflektion
 Det svåraste i projektet var inte koden utan miljön runt den. När jag skulle
 installera PowerShell i WSL fungerade inte Microsofts vanliga installationsmetod,
